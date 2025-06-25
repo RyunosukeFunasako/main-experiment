@@ -1,0 +1,7 @@
+.env
+.DS_Store
+/dialogue_history/*
+/cc_immediate/*
+/rapport_scale/*
+/dialogue_quality/*
+/mode_score/*

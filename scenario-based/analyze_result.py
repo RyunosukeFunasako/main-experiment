@@ -14,7 +14,7 @@ mode_scores_file = "./mode_score/mode_scores.csv"
 cc_immediate_dir = "./cc_immediate"
 rapport_scale_dir = "./rapport_scale"
 dialogue_quality_dir = "./dialogue_quality"
-
+ctrs_eval_dir = "./ctrs_eval"
 # Hiraginoフォントを指定
 plt.rcParams['font.family'] = 'Hiragino Sans'
 
@@ -263,15 +263,66 @@ with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer.writerow([f"test_{patient_id:03}", score])
 print(f"✅ Dialogue Quality合計スコアの詳細CSVファイルを保存しました: {csv_path}")
 
+# CTRSの分析
+ctrs_data = { f"Q{i}": [] for i in range(1, 12) }  # CTRSは11項目
+ctrs_total_scores = []  # 合計スコアを格納するリスト
 
+for patient_id in tester_patient_id:
+    ctrs_file = os.path.join(ctrs_eval_dir, f"test_{patient_id:03}.json")
+    with open(ctrs_file, "r", encoding="utf-8") as f:
+        ctrs = json.load(f)
+    
+    # 各項目のスコアを格納
+    ratings = ctrs.get("ratings", {})
+    for key in range(1, 12):  # 1から11までの項目
+        score = ratings.get(str(key), 0)  # キーは文字列として保存されている
+        ctrs_data[f"Q{key}"].append(score)
+    
+    # 合計スコアを計算
+    total_score = sum(ratings.get(str(key), 0) for key in range(1, 12))
+    ctrs_total_scores.append(total_score)
 
+# CTRSの統計量を計算
+ctrs_mean = np.mean(ctrs_total_scores)
+ctrs_var = np.var(ctrs_total_scores)
+ctrs_std = np.std(ctrs_total_scores)
 
+# CTRSの平均値CSV保存
+csv_path = os.path.join(result_dir, "ctrs.csv")
+with open(csv_path, "w", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    writer.writerow(["Metric", "Value"])
+    for key, values in ctrs_data.items():
+        writer.writerow([key, sum(values)/len(values)])
+    writer.writerow(["合計スコア（平均）", ctrs_mean])
+    writer.writerow(["合計スコア（分散）", ctrs_var])
+    writer.writerow(["合計スコア（標準偏差）", ctrs_std])
+print(f"✅ CTRSのCSVファイルを保存しました: {csv_path}")
 
+# CTRSの箱ひげ図
+plt.figure(figsize=(10, 5))
+plt.boxplot([ctrs_data[key] for key in ctrs_data], 
+            labels=ctrs_data.keys(), vert=True)
+plt.title("CTRS 各項目ごとのスコアの分布")
+plt.tight_layout()
+plt.savefig(os.path.join(result_dir, "ctrs_boxplot.png"))
+plt.close()
 
+# CTRS合計スコアの分布
+plt.figure(figsize=(10, 6))
+plt.hist(ctrs_total_scores, bins=range(0, 67, 1), alpha=0.7)  # 最小値0から最大値66（全項目6点）まで
+plt.title("CTRS 合計スコアの分布")
+plt.xlabel("合計スコア")
+plt.ylabel("人数")
+plt.grid(True, alpha=0.3)
+plt.savefig(os.path.join(result_dir, "ctrs_histogram.png"))
+plt.close()
 
-
-
-
-
-
-
+# CTRS合計スコアの詳細CSV保存
+csv_path = os.path.join(result_dir, "ctrs_total_scores.csv")
+with open(csv_path, "w", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    writer.writerow(["テスト番号", "合計スコア"])
+    for patient_id, score in zip(tester_patient_id, ctrs_total_scores):
+        writer.writerow([f"test_{patient_id:03}", score])
+print(f"✅ CTRS合計スコアのCSVファイルを保存しました: {csv_path}")

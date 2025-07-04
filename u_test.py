@@ -19,11 +19,13 @@ scenario_based_mode_scores_file = "scenario-based/mode_score/mode_scores.csv"
 scenario_based_cc_immediate_dir = "scenario-based/cc_immediate"
 scenario_based_rapport_scale_dir = "scenario-based/rapport_scale"
 scenario_based_dialogue_quality_dir = "scenario-based/dialogue_quality"
+scenario_based_ctrs_eval_dir = "scenario-based/ctrs_eval"
 
 LLM_scenario_mode_scores_file = "LLM+scenario/mode_score/mode_scores.csv"
 LLM_scenario_cc_immediate_dir = "LLM+scenario/cc_immediate"
 LLM_scenario_rapport_scale_dir = "LLM+scenario/rapport_scale"
 LLM_scenario_dialogue_quality_dir = "LLM+scenario/dialogue_quality"
+LLM_scenario_ctrs_eval_dir = "LLM+scenario/ctrs_eval"
 
 # 気分の変化
 scenario_based_mode_changes = []
@@ -220,7 +222,57 @@ dialogue_quality_Q14_statistic, dialogue_quality_Q14_p_value = mannwhitneyu(scen
 dialogue_quality_Q15_statistic, dialogue_quality_Q15_p_value = mannwhitneyu(scenario_based_dialogue_quality_data["Q15"], LLM_scenario_dialogue_quality_data["Q15"], alternative='two-sided')
 dialogue_quality_statistic, dialogue_quality_p_value = mannwhitneyu(scenario_based_dialogue_quality_total_scores, LLM_scenario_dialogue_quality_total_scores, alternative='two-sided')
     
+# CTRS
+scenario_based_ctrs_eval_data = { f"Q{i}": [] for i in range(1, 12) }
+scenario_based_ctrs_eval_total_scores = []
+
+LLM_scenario_ctrs_eval_data = { f"Q{i}": [] for i in range(1, 12) }
+LLM_scenario_ctrs_eval_total_scores = []
+
+for patient_id in tester_patient_id:
+    scenario_based_ctrs_eval_file = os.path.join(scenario_based_ctrs_eval_dir, f"test_{patient_id:03}.json")
+    with open(scenario_based_ctrs_eval_file, "r", encoding="utf-8") as f:
+        scenario_based_ctrs_eval = json.load(f)
+
+    # 各項目のスコアを格納
+    ratings = scenario_based_ctrs_eval.get("ratings", {})
+    for key in range(1, 12):  # 1から11までの項目
+        score = ratings.get(str(key), 0)  # キーは文字列として保存されている
+        scenario_based_ctrs_eval_data[f"Q{key}"].append(score)
     
+    # 合計スコアを計算
+    total_score = sum(ratings.get(str(key), 0) for key in range(1, 12))
+    scenario_based_ctrs_eval_total_scores.append(total_score)
+
+for patient_id in tester_patient_id:
+    LLM_scenario_ctrs_eval_file = os.path.join(LLM_scenario_ctrs_eval_dir, f"test_{patient_id:03}.json")
+    with open(LLM_scenario_ctrs_eval_file, "r", encoding="utf-8") as f:
+        LLM_scenario_ctrs_eval = json.load(f)
+    
+    # 各項目のスコアを格納
+    ratings = LLM_scenario_ctrs_eval.get("ratings", {})
+    for key in range(1, 12):  # 1から11までの項目
+        score = ratings.get(str(key), 0)  # キーは文字列として保存されている
+        LLM_scenario_ctrs_eval_data[f"Q{key}"].append(score)
+    
+    # 合計スコアを計算
+    total_score = sum(ratings.get(str(key), 0) for key in range(1, 12))
+    LLM_scenario_ctrs_eval_total_scores.append(total_score)
+    
+# 項目ごとにMann-Whitney U検定を実行
+ctrs_eval_Q1_statistic, ctrs_eval_Q1_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q1"], LLM_scenario_ctrs_eval_data["Q1"], alternative='two-sided')
+ctrs_eval_Q2_statistic, ctrs_eval_Q2_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q2"], LLM_scenario_ctrs_eval_data["Q2"], alternative='two-sided')
+ctrs_eval_Q3_statistic, ctrs_eval_Q3_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q3"], LLM_scenario_ctrs_eval_data["Q3"], alternative='two-sided')
+ctrs_eval_Q4_statistic, ctrs_eval_Q4_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q4"], LLM_scenario_ctrs_eval_data["Q4"], alternative='two-sided')
+ctrs_eval_Q5_statistic, ctrs_eval_Q5_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q5"], LLM_scenario_ctrs_eval_data["Q5"], alternative='two-sided')
+ctrs_eval_Q6_statistic, ctrs_eval_Q6_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q6"], LLM_scenario_ctrs_eval_data["Q6"], alternative='two-sided')
+ctrs_eval_Q7_statistic, ctrs_eval_Q7_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q7"], LLM_scenario_ctrs_eval_data["Q7"], alternative='two-sided')
+ctrs_eval_Q8_statistic, ctrs_eval_Q8_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q8"], LLM_scenario_ctrs_eval_data["Q8"], alternative='two-sided')
+ctrs_eval_Q9_statistic, ctrs_eval_Q9_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q9"], LLM_scenario_ctrs_eval_data["Q9"], alternative='two-sided')
+ctrs_eval_Q10_statistic, ctrs_eval_Q10_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q10"], LLM_scenario_ctrs_eval_data["Q10"], alternative='two-sided')
+ctrs_eval_Q11_statistic, ctrs_eval_Q11_p_value = mannwhitneyu(scenario_based_ctrs_eval_data["Q11"], LLM_scenario_ctrs_eval_data["Q11"], alternative='two-sided')
+ctrs_eval_statistic, ctrs_eval_p_value = mannwhitneyu(scenario_based_ctrs_eval_total_scores, LLM_scenario_ctrs_eval_total_scores, alternative='two-sided')
+
 # 結果保存
 csv_path = os.path.join(result_dir, "mannwhitneyu_result.csv")
 with open(csv_path, "w", newline="", encoding="utf-8") as f:
@@ -278,6 +330,21 @@ with open(csv_path, "w", newline="", encoding="utf-8") as f:
     writer.writerow(["Q14", dialogue_quality_Q14_statistic, dialogue_quality_Q14_p_value])
     writer.writerow(["Q15", dialogue_quality_Q15_statistic, dialogue_quality_Q15_p_value])
     writer.writerow(["合計", dialogue_quality_statistic, dialogue_quality_p_value])
-    
-print(f"✅ Mann-Whitney U検定の結果を保存しました: {csv_path}")
+    writer.writerow([])
 
+    # CTRS
+    writer.writerow(["### CTRS"])
+    writer.writerow(["項目", "U統計量", "p値"])
+    writer.writerow(["Q1", ctrs_eval_Q1_statistic, ctrs_eval_Q1_p_value])
+    writer.writerow(["Q2", ctrs_eval_Q2_statistic, ctrs_eval_Q2_p_value])
+    writer.writerow(["Q3", ctrs_eval_Q3_statistic, ctrs_eval_Q3_p_value])
+    writer.writerow(["Q4", ctrs_eval_Q4_statistic, ctrs_eval_Q4_p_value])
+    writer.writerow(["Q5", ctrs_eval_Q5_statistic, ctrs_eval_Q5_p_value])
+    writer.writerow(["Q6", ctrs_eval_Q6_statistic, ctrs_eval_Q6_p_value])
+    writer.writerow(["Q7", ctrs_eval_Q7_statistic, ctrs_eval_Q7_p_value])
+    writer.writerow(["Q8", ctrs_eval_Q8_statistic, ctrs_eval_Q8_p_value])
+    writer.writerow(["Q9", ctrs_eval_Q9_statistic, ctrs_eval_Q9_p_value])
+    writer.writerow(["Q10", ctrs_eval_Q10_statistic, ctrs_eval_Q10_p_value])
+    writer.writerow(["Q11", ctrs_eval_Q11_statistic, ctrs_eval_Q11_p_value])
+    writer.writerow(["合計", ctrs_eval_statistic, ctrs_eval_p_value])
+print(f"✅ Mann-Whitney U検定の結果を保存しました: {csv_path}")

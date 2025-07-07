@@ -71,19 +71,25 @@ def build_patient_data_prompt(patient_data):
 # カウンセラーの発話生成関数
 def generate_counselor_message(counselor_message, messages_for_counselor, messages_for_patient, openai, model, turn, scenario_data):
     counselor_message_prompt = f"""
+# 命令書：
 あなたは優秀なカウンセラーエージェントです。
-あなたは認知行動療法を行う初回セッションを行なっています。
-カウンセラーエージェントには発話シナリオが用意されています。
+以下の制約条件と発話シナリオ、対話履歴をもとに発話を生成してください。
 
-発話シナリオ一覧：
-{json.dumps(scenario_data, ensure_ascii=False, indent=2)}
+# 制約条件：
+- 基本的に発話シナリオに沿って、自然な発話を生成する。
+- 患者の症状に関する返答には、発話のはじめに繰り返し（言い換え）や共感的な声かけを1文で簡潔に行う。
+  - 例：「つまり〇〇ということですね。」「それは〇〇ですね。」
+- 必要に応じて発話シナリオの表現を修正して良い。ただし、各ターンの発話シナリオの内容は生成する発話に必ず含める。
+- 発話シナリオに含まれない質問や提案はしない。
+- 指示をするような断定的な発話はしない。
+  - 例：「まずは〇〇することが大切です。」などの指示的な発話はしない。
+- 患者からの質問には回答しながらも、発話シナリオからは逸脱しない。
 
-今回のターン{turn}の発話シナリオは以下の通りです。
-発話シナリオに沿って、共感を示しながら自然な発話を行なってください。
-ただし、発話シナリオに含まれない質問や提案はしないでください。
-
-発話シナリオ：
+# 今回のターン{turn}の発話シナリオ：
 {counselor_message}
+
+# 発話シナリオ一覧：
+{json.dumps(scenario_data, ensure_ascii=False, indent=2)}
 """
     # カウンセラーのメッセージリストを更新
     messages_for_counselor = [{"role": "system", "content": counselor_message_prompt}] + messages_for_counselor[1:]
@@ -110,8 +116,8 @@ def generate_patient_response(messages_for_patient, messages_for_counselor, open
     return patient_reply, messages_for_patient, messages_for_counselor
 
 # 患者データ選択
-tester_patient_id = [2, 7, 10, 13, 15, 19, 20, 22, 27, 28, 33, 37, 38, 40, 41, 48, 49]
-# tester_patient_id = [2]
+tester_patient_id = [2]
+# tester_patient_id = [2, 7, 10, 13, 15, 19, 20, 22, 27, 28, 33, 37, 38, 40, 41, 48, 49]
 # tester_patient_id = [7, 10, 13, 15, 19, 20, 22, 27, 28, 33, 37, 38, 40, 41, 48, 49]
 
 # 対話開始
@@ -149,9 +155,16 @@ for patient_id in tester_patient_id:
     for turn in range(len(scenario_data)):
         counselor_scenario_message = scenario_data[turn]["counselor_message"]
 
-        counselor_reply, messages_for_counselor, messages_for_patient = generate_counselor_message(
-            counselor_scenario_message, messages_for_counselor, messages_for_patient, openai, model, turn, scenario_data
-        )
+        # 1ターン目はシナリオ通りの発話を使用
+        if turn == 0:
+            counselor_reply = counselor_scenario_message
+            messages_for_counselor.append({"role": "assistant", "content": counselor_reply})
+            messages_for_patient.append({"role": "user", "content": counselor_reply})
+        else:
+            # 2ターン目以降はLLMが介入
+            counselor_reply, messages_for_counselor, messages_for_patient = generate_counselor_message(
+                counselor_scenario_message, messages_for_counselor, messages_for_patient, openai, model, turn, scenario_data
+            )
 
         patient_reply, messages_for_patient, messages_for_counselor = generate_patient_response(
             messages_for_patient, messages_for_counselor, openai, model
